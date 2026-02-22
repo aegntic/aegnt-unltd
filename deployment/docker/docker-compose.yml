@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # API Backend
+  api:
+    build: ./ui/api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://nexus:nexus@postgres:5432/nexusagent
+      - REDIS_URL=redis://redis:6379
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      - postgres
+      - redis
+      - ollama
+    volumes:
+      - ./core:/app/core
+      - agent_workspaces:/workspaces
+    networks:
+      - nexus-network
+
+  # Web Dashboard
+  dashboard:
+    build: ./ui/dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      - API_URL=http://api:8000
+    depends_on:
+      - api
+    networks:
+      - nexus-network
+
+  # PostgreSQL for persistent storage
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      - POSTGRES_USER=nexus
+      - POSTGRES_PASSWORD=nexus
+      - POSTGRES_DB=nexusagent
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - nexus-network
+
+  # Redis for caching & pub/sub
+  redis:
+    image: redis:7-alpine
+    networks:
+      - nexus-network
+
+  # Ollama for local model serving
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_models:/root/.ollama
+      - ./models/configs:/config
+    ports:
+      - "11434:11434"
+    networks:
+      - nexus-network
+    deploy:
+      resources:
+        limits:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Browser Automation Server
+  browser:
+    image: browserless/browserless:latest
+    ports:
+      - "3001:3000"
+    networks:
+      - nexus-network
+
+  # Agent Sandbox Environment
+  sandbox:
+    build: 
+      context: ./core/sandbox
+      dockerfile: Dockerfile
+    volumes:
+      - agent_workspaces:/workspaces
+    environment:
+      - BROWSER_URL=http://browser:3001
+      - OLLAMA_BASE_URL=http://ollama:11434
+    privileged: true
+    networks:
+      - nexus-network
+
+networks:
+  nexus-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  ollama_models:
+  agent_workspaces:
