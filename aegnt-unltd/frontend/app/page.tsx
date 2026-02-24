@@ -17,10 +17,17 @@ const suggestions = [
   { label: "Create a new project", icon: "◇" },
 ];
 
+const setupEssentials = [
+  { label: "Install Ollama", desc: "Run AI locally for free", cmd: "curl -fsSL https://ollama.com/install.sh | sh" },
+  { label: "Pull models", desc: "Phi-4, Gemma 3, Llama 3.3 (SOTA 2026)", cmd: "ollama pull phi4 && ollama pull gemma3:4b && ollama pull llama3.3" },
+  { label: "Connect MCP", desc: "Browser, Filesystem, GitHub", cmd: "Configure in settings" },
+];
+
 export default function Home() {
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
   const [responses, setResponses] = useState<Response[]>([]);
+  const [showSettings, setShowSettings] = useState(false);
 
   const handleSubmit = async () => {
     if (!input.trim()) return;
@@ -30,7 +37,7 @@ export default function Home() {
     setInput("");
 
     try {
-      const res = await fetch("http://localhost:8000/process", {
+      const res = await fetch("http://localhost:8080/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input: inputText }),
@@ -78,15 +85,26 @@ export default function Home() {
     setInput(suggestion);
   };
 
+  const runAllSetup = () => {
+    const allCommands = setupEssentials.map(s => s.cmd).join('\n');
+    navigator.clipboard.writeText(allCommands);
+    setInput("Run these commands in terminal:\n" + allCommands);
+  };
+
   return (
     <div className="app">
       <header className="header">
         <div className="logo">
           <span className="logo-text">◈ AEGNT-UNLTD</span>
         </div>
-        <div className="status-badge">
-          <span className="status-dot" />
-          <span>Local Mode</span>
+        <div className="header-actions">
+          <div className="status-badge">
+            <span className="status-dot" />
+            <span>Local Mode</span>
+          </div>
+          <button className="settings-btn" onClick={() => setShowSettings(!showSettings)}>
+            ⚙
+          </button>
         </div>
       </header>
 
@@ -140,21 +158,44 @@ export default function Home() {
             ))}
 
             {responses.length === 0 && (
-              <div className="suggestions">
-                <div className="suggestions-label">Get started</div>
-                <div className="suggestions-list">
-                  {suggestions.map((s, i) => (
-                    <button
-                      key={i}
-                      className="suggestion-btn"
-                      onClick={() => handleSuggestion(s.label)}
-                    >
-                      <span className="suggestion-icon">{s.icon}</span>
-                      {s.label}
-                    </button>
-                  ))}
+              <>
+                <div className="suggestions">
+                  <div className="suggestions-label">Get started</div>
+                  <div className="suggestions-list">
+                    {suggestions.map((s, i) => (
+                      <button
+                        key={i}
+                        className="suggestion-btn"
+                        onClick={() => handleSuggestion(s.label)}
+                      >
+                        <span className="suggestion-icon">{s.icon}</span>
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+
+                <div className="setup-essentials">
+                  <div className="setup-header">
+                    <div className="setup-label">Setup Essentials</div>
+                    <button className="run-all-btn" onClick={runAllSetup}>
+                      ▶ Run All
+                    </button>
+                  </div>
+                  <div className="setup-list">
+                    {setupEssentials.map((s, i) => (
+                      <div key={i} className="setup-item">
+                        <div className="setup-item-header">
+                          <span className="setup-item-icon">●</span>
+                          <span className="setup-item-title">{s.label}</span>
+                        </div>
+                        <div className="setup-item-desc">{s.desc}</div>
+                        <code className="setup-item-cmd">{s.cmd}</code>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>

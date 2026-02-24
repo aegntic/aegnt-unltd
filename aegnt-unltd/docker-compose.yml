@@ -1,0 +1,48 @@
+version: '3.9'
+
+services:
+  # AEGNT-UNLTD Rust Backend (Brain)
+  backend:
+    build:
+      context: ..
+      dockerfile: aegnt-unltd/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - ./memory:/app/memory
+      - ./knowledge:/app/knowledge
+    networks:
+      - aegnt-network
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../aegnt-unltd/frontend/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8080
+    depends_on:
+      - backend
+    networks:
+      - aegnt-network
+
+  # Ollama for local AI models
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_models:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - aegnt-network
+
+networks:
+  aegnt-network:
+    driver: bridge
+
+volumes:
+  ollama_models:
